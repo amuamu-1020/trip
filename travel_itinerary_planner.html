@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Travel Itinerary Planner</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        :root {
+            /* 新しいカラーコーディング */
+            --color-dest: #3b82f6; /* Blue for Destination */
+            --color-trans: #10b981; /* Green for Transport */
+            --color-hotel: #7c2d12; /* Warm Dark (Orange-900) for Hotel */
+            
+            --bg-body: #f8fafc;
+            --bg-surface: #ffffff;
+            --text-main: #0f172a;
+            --text-sub: #64748b;
+            --border-color: #e2e8f0;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+
+        body { 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background: var(--bg-body); 
+            color: var(--text-main); 
+            margin: 0;
+            padding: 0;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .app-container { max-width: 768px; margin: auto; padding-bottom: 80px; }
+        
+        /* Sticky Header for Premium App Feel */
+        .sticky-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .header-top { display: flex; justify-content: space-between; align-items: center; }
+        .app-title { font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin: 0; display: flex; align-items: center; gap: 6px;}
+        
+        .plan-selector-group { display: flex; align-items: center; gap: 8px; flex: 1; max-width: 60%; }
+        .plan-selector-group select { flex: 1; padding: 6px 10px; border: 1px solid var(--border-color); border-radius: 8px; font-weight: 600; font-size: 0.9rem; background: var(--bg-body); color: var(--text-main); outline: none; }
+        .btn-new-plan { background: #f1f5f9; color: var(--text-main); border: 1px solid var(--border-color); padding: 6px 10px; border-radius: 8px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: 0.2s; white-space: nowrap;}
+        
+        .controls-row { display: flex; justify-content: space-between; align-items: center; }
+        .view-controls { display: flex; background: var(--bg-body); padding: 3px; border-radius: 8px; border: 1px solid var(--border-color); }
+        .view-btn { background: transparent; color: var(--text-sub); border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.8rem; transition: 0.2s; }
+        .view-btn.active { background: var(--bg-surface); color: var(--text-main); box-shadow: var(--shadow-sm); }
+
+        .jst-toggle { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; font-weight: 600; color: var(--text-sub); }
+        .switch { position: relative; display: inline-block; width: 32px; height: 18px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #cbd5e1; transition: .3s; border-radius: 20px; }
+        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 2px; bottom: 2px; background-color: white; transition: .3s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--text-main); }
+        input:checked + .slider:before { transform: translateX(14px); }
+
+        /* Main Content Area */
+        .content-padding { padding: 20px 16px; }
+
+        /* Form Card */
+        .form-card { background: var(--bg-surface); padding: 20px; border-radius: var(--radius-lg); box-shadow: var(--shadow-md); margin-bottom: 24px; border: 1px solid var(--border-color); transition: 0.3s; }
+        .form-card.editing-mode { box-shadow: 0 0 0 2px #f59e0b; background: #fffdf5; }
+        
+        .block-type-selector { display: flex; gap: 8px; margin-bottom: 16px; background: var(--bg-body); padding: 4px; border-radius: 10px; }
+        .type-radio { display: none; }
+        .type-label { flex: 1; text-align: center; padding: 8px 0; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem; color: var(--text-sub); transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 4px; }
+        .type-radio:checked + .type-label { color: white; box-shadow: var(--shadow-sm); }
+        #type-dest:checked + .type-label { background: var(--color-dest); }
+        #type-trans:checked + .type-label { background: var(--color-trans); }
+        #type-hotel:checked + .type-label { background: var(--color-hotel); }
+
+        .form-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+        @media(min-width: 600px) { .form-grid { grid-template-columns: 1fr 1fr; } .form-grid .full-width { grid-column: span 2; } }
+        
+        .form-group label { display: block; font-size: 0.75rem; font-weight: 700; margin-bottom: 6px; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.5px;}
+        .form-group input, .form-group select { width: 100%; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px; box-sizing: border-box; font-size: 0.95rem; background: var(--bg-body); transition: all 0.2s; color: var(--text-main); }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: #94a3b8; background: var(--bg-surface); box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.15); }
+        
+        /* Reservation Radio */
+        .reservation-group { display: flex; gap: 12px; }
+        .res-radio-label { font-size: 0.85rem; font-weight: 600; display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text-main); background: var(--bg-body); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-color); flex: 1; justify-content: center;}
+        .res-radio-label:has(input:checked) { background: #e0f2fe; border-color: #7dd3fc; color: #0369a1; }
+        .res-radio-label input { width: auto; margin: 0; cursor: pointer; display: none;}
+        
+        .form-actions { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-submit { background: var(--text-main); color: white; border: none; padding: 12px 16px; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600; flex: 1; transition: 0.2s; box-shadow: var(--shadow-sm); }
+        .btn-submit:hover { background: #334155; }
+        .btn-submit.btn-update { background: #f59e0b; color: white; }
+        .btn-cancel-edit { background: var(--bg-body); color: var(--text-main); border: 1px solid var(--border-color); padding: 12px 16px; border-radius: 8px; cursor: pointer; font-size: 0.95rem; font-weight: 600; display: none; }
+
+        /* Modern Timeline View */
+        .timeline-container { position: relative; padding-left: 28px; margin-top: 10px;}
+        /* Vertical Connecting Line */
+        .timeline-container::before { content: ''; position: absolute; left: 10px; top: 15px; bottom: 20px; width: 2px; background: #cbd5e1; border-radius: 2px; }
+        
+        .timeline-item { position: relative; margin-bottom: 20px; background: var(--bg-surface); padding: 14px 16px; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); border: 1px solid var(--border-color); transition: transform 0.2s, box-shadow 0.2s; }
+        .timeline-item:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+        
+        /* Colored Dots on the Line */
+        .timeline-item::before { content: ''; position: absolute; left: -24.5px; top: 20px; width: 12px; height: 12px; border-radius: 50%; border: 3px solid var(--bg-body); z-index: 1; box-shadow: 0 0 0 1px #cbd5e1; }
+        
+        .type-dest::before { background: var(--color-dest); }
+        .type-trans::before { background: var(--color-trans); }
+
+        /* --- UI Polish: Slim Hotel Cards --- */
+        .timeline-item.type-hotel { 
+            padding: 8px 12px; 
+            margin-bottom: 12px; 
+            background: #fff8f6; 
+            border: 1px solid #ffedd5;
+            box-shadow: none;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .timeline-item.type-hotel:hover { transform: none; box-shadow: var(--shadow-sm); }
+        .timeline-item.type-hotel::before { 
+            background: var(--color-hotel); 
+            top: 50%; 
+            transform: translateY(-50%); 
+            left: -24.5px; 
+            width: 10px; 
+            height: 10px;
+        }
+        .hotel-slim-content { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; overflow: hidden; }
+        .hotel-slim-date { font-weight: 700; color: var(--color-hotel); font-size: 0.85rem; white-space: nowrap; }
+        .hotel-slim-title { font-weight: 600; font-size: 0.9rem; color: #431407; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* Badges */
+        .badges-wrap { display: flex; gap: 6px; align-items: center; margin-bottom: 8px; flex-wrap: wrap;}
+        .day-badge { background: #e2e8f0; color: var(--text-sub); font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 6px; letter-spacing: 0.5px;}
+        .res-badge { font-size: 0.7rem; font-weight: 700; padding: 2px 6px; border-radius: 6px; color: white; }
+        .badge-reserved { background: #10b981; }
+        .badge-unreserved { background: #f43f5e; }
+        
+        /* Slim Card Badges overriding */
+        .timeline-item.type-hotel .day-badge { background: #ffedd5; color: var(--color-hotel); }
+
+        /* Item Content Shared (Dest & Trans) */
+        .item-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
+        .item-date { font-weight: 700; color: var(--text-main); font-size: 1rem; display: flex; align-items: center; gap: 6px;}
+        .item-actions { display: flex; gap: 4px; flex-shrink: 0;}
+        .action-btn { background: transparent; border: none; border-radius: 6px; padding: 4px 8px; font-size: 0.9rem; cursor: pointer; color: var(--text-sub); transition: 0.2s; display: flex; align-items: center; justify-content: center;}
+        .action-btn:hover { background: var(--bg-body); color: var(--text-main); }
+        .action-btn.edit:hover { color: #d97706; background: #fef3c7;}
+        .action-btn.delete:hover { color: #e11d48; background: #ffe4e6;}
+        
+        .item-details span { display: block; margin-bottom: 4px; font-size: 0.9rem; color: var(--text-sub); line-height: 1.4;}
+        .item-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 6px; color: var(--text-main); }
+        
+        a { color: var(--color-dest); text-decoration: none; word-break: break-all; }
+        a:hover { text-decoration: underline; }
+
+        /* List View */
+        .list-container { overflow-x: auto; background: var(--bg-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); border: 1px solid var(--border-color); }
+        .list-table { width: 100%; border-collapse: collapse; min-width: 700px; }
+        .list-table th, .list-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 0.85rem; }
+        .list-table th { background: var(--bg-body); font-weight: 700; color: var(--text-sub); text-transform: uppercase; letter-spacing: 0.5px; font-size: 0.75rem;}
+        .list-table tr:hover { background: #f8fafc; }
+
+        /* Modals */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15, 23, 42, 0.5); display: flex; justify-content: center; align-items: center; z-index: 1000; visibility: hidden; opacity: 0; transition: 0.2s; backdrop-filter: blur(4px); }
+        .modal-overlay.active { visibility: visible; opacity: 1; }
+        .modal-box { background: white; padding: 24px; border-radius: var(--radius-lg); max-width: 420px; width: 90%; text-align: center; box-shadow: var(--shadow-lg); transform: scale(0.95); transition: 0.2s; }
+        .modal-overlay.active .modal-box { transform: scale(1); }
+        .modal-msg { margin-bottom: 20px; font-size: 1.05rem; font-weight: 600; line-height: 1.5; color: var(--text-main); }
+        .modal-btns { display: flex; gap: 12px; justify-content: center; }
+        .modal-btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.95rem; transition: 0.2s; flex: 1;}
+        .btn-confirm { background: var(--text-main); color: white; }
+        .btn-confirm:hover { background: #334155; }
+        .btn-confirm.danger { background: #e11d48; }
+        .btn-confirm.danger:hover { background: #be123c; }
+        .btn-modal-cancel { background: var(--bg-body); color: var(--text-main); border: 1px solid var(--border-color);}
+        
+        .modal-input { width: 100%; padding: 12px; margin-bottom: 20px; border: 1px solid var(--border-color); border-radius: 8px; box-sizing: border-box; font-size: 1rem; outline: none;}
+        .modal-input:focus { border-color: var(--text-sub); }
+
+        /* AI Suggestion */
+        .title-input-group { display: flex; gap: 8px; }
+        .btn-ai { background: linear-gradient(135deg, #8b5cf6, #d946ef); color: white; border: none; padding: 0 14px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: opacity 0.2s; white-space: nowrap; box-shadow: 0 2px 4px rgba(217, 70, 239, 0.2); }
+        .btn-ai:hover { opacity: 0.9; }
+        .btn-ai:disabled { opacity: 0.7; cursor: not-allowed; }
+        .ai-content { text-align: left; white-space: pre-wrap; font-size: 0.95rem; line-height: 1.6; color: var(--text-main); background: var(--bg-body); padding: 16px; border-radius: 8px; margin-bottom: 20px; max-height: 50vh; overflow-y: auto; border: 1px solid var(--border-color); }
+
+        .empty-state { text-align: center; padding: 40px 20px; color: var(--text-sub); font-weight: 500; font-size: 0.95rem;}
+        
+        /* Utilities */
+        .color-dest { color: var(--color-dest); }
+        .color-trans { color: var(--color-trans); }
+        .color-hotel { color: var(--color-hotel); }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        
+        <!-- Premium Sticky Header -->
+        <div class="sticky-header">
+            <div class="header-top">
+                <h1 class="app-title">✈️ トラベルプランナー</h1>
+                <div class="plan-selector-group">
+                    <select id="planSelector" onchange="switchPlan()"></select>
+                    <button class="btn-new-plan" onclick="promptNewPlan()">＋</button>
+                </div>
+            </div>
+            <div class="controls-row">
+                <div class="view-controls">
+                    <button class="view-btn active" id="btnTimeline" onclick="setViewMode('timeline')">タイムライン</button>
+                    <button class="view-btn" id="btnList" onclick="setViewMode('list')">一覧</button>
+                </div>
+                <div class="jst-toggle">
+                    <span>現地時間</span>
+                    <label class="switch">
+                        <input type="checkbox" id="jstToggle" onchange="toggleJST()">
+                        <span class="slider"></span>
+                    </label>
+                    <span>日本時間</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="content-padding">
+            <!-- Form Card -->
+            <div class="form-card" id="formCard">
+                <div class="block-type-selector">
+                    <input type="radio" name="planType" id="type-dest" class="type-radio" value="destination" checked onchange="updateFormLabels()">
+                    <label for="type-dest" class="type-label">📍 目的地</label>
+                    
+                    <input type="radio" name="planType" id="type-trans" class="type-radio" value="transport" onchange="updateFormLabels()">
+                    <label for="type-trans" class="type-label">🚆 移動手段</label>
+                    
+                    <input type="radio" name="planType" id="type-hotel" class="type-radio" value="hotel" onchange="updateFormLabels()">
+                    <label for="type-hotel" class="type-label">🏨 宿泊先</label>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label>国 / タイムゾーン</label>
+                        <select id="countrySelect" onchange="syncTimezone()">
+                            <option value="Europe/Paris">フランス/ドイツ (CET)</option>
+                            <option value="Europe/Helsinki">フィンランド/ギリシャ (EET)</option>
+                            <option value="Europe/London">イギリス (GMT)</option>
+                            <option value="Europe/Zurich">スイス (CET)</option>
+                            <option value="Asia/Tokyo">日本 (JST)</option>
+                            <option value="America/New_York">アメリカ東部 (EST)</option>
+                            <option value="Asia/Seoul">韓国 (KST)</option>
+                            <option value="Asia/Taipei">台湾 (CST)</option>
+                        </select>
+                        <input type="hidden" id="timezone" value="Europe/Paris">
+                    </div>
+                    <div class="form-group">
+                        <label>現地日時</label>
+                        <input type="datetime-local" id="dateTime">
+                    </div>
+                    <div class="form-group full-width">
+                        <label id="labelTitle">目的地 / スポット</label>
+                        <div class="title-input-group">
+                            <input type="text" id="title" placeholder="例: ルーヴル美術館">
+                            <button type="button" id="btnAiSuggest" class="btn-ai" onclick="suggestAI()">✨ AI 提案</button>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group full-width" id="reservationWrapper" style="display: none;">
+                        <label>予約状況</label>
+                        <div class="reservation-group">
+                            <label class="res-radio-label"><input type="radio" name="reservation" value="none" checked> なし</label>
+                            <label class="res-radio-label"><input type="radio" name="reservation" value="reserved"> 予約済</label>
+                            <label class="res-radio-label"><input type="radio" name="reservation" value="unreserved"> 未予約</label>
+                        </div>
+                    </div>
+
+                    <div class="form-group full-width">
+                        <label id="labelDetail">詳細 / メモ</label>
+                        <input type="text" id="detail" placeholder="例: 事前にチケットを購入する">
+                    </div>
+                    <div class="form-group full-width">
+                        <label>参考リンク (URL)</label>
+                        <input type="text" id="link" placeholder="https://...">
+                    </div>
+                </div>
+                <div class="form-actions">
+                    <button class="btn-cancel-edit" id="btnCancelEdit" onclick="cancelEdit()">キャンセル</button>
+                    <button class="btn-submit" id="btnSubmit" onclick="addOrUpdatePlan()">計画に追加</button>
+                </div>
+            </div>
+
+            <!-- Content List -->
+            <div id="contentArea"></div>
+        </div>
+    </div>
+
+    <!-- Custom Modals -->
+    <div id="customModal" class="modal-overlay">
+        <div class="modal-box">
+            <div id="modalMsg" class="modal-msg"></div>
+            <div class="modal-btns">
+                <button id="modalCancelBtn" class="modal-btn btn-modal-cancel">キャンセル</button>
+                <button id="modalConfirmBtn" class="modal-btn btn-confirm">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="inputModal" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-msg">新規プラン作成</div>
+            <input type="text" id="newPlanNameInput" class="modal-input" placeholder="例: ヨーロッパ旅行 2026">
+            <div class="modal-btns">
+                <button onclick="document.getElementById('inputModal').classList.remove('active')" class="modal-btn btn-modal-cancel">キャンセル</button>
+                <button onclick="execCreatePlan()" class="modal-btn btn-confirm">作成</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="aiModal" class="modal-overlay">
+        <div class="modal-box" style="max-width: 500px;">
+            <h3 id="aiModalTitle" style="margin-top: 0; font-size: 1.1rem; color: var(--text-main); margin-bottom: 15px;"></h3>
+            <div id="aiModalContent" class="ai-content"></div>
+            <div class="modal-btns">
+                <button onclick="document.getElementById('aiModal').classList.remove('active')" class="modal-btn btn-confirm" style="width: 100%;">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Data Management ---
+        let appData = {
+            currentPlanId: 'default',
+            plans: {
+                'default': { name: 'マイ旅行プラン', items: [] }
+            }
+        };
+
+        const storedApp = JSON.parse(localStorage.getItem('travelAppV2_1'));
+        if (storedApp) {
+            appData = storedApp;
+        }
+
+        let currentItems = appData.plans[appData.currentPlanId].items;
+        let viewMode = 'timeline';
+        let editingIndex = -1;
+        let isJstMode = false;
+
+        function saveData() {
+            appData.plans[appData.currentPlanId].items = currentItems;
+            localStorage.setItem('travelAppV2_1', JSON.stringify(appData));
+        }
+
+        // --- Modals ---
+        function showModal(message, isConfirm, onConfirm, isDanger = false) {
+            const modal = document.getElementById('customModal');
+            document.getElementById('modalMsg').textContent = message;
+            const cancelBtn = document.getElementById('modalCancelBtn');
+            const confirmBtn = document.getElementById('modalConfirmBtn');
+
+            cancelBtn.style.display = isConfirm ? 'block' : 'none';
+            confirmBtn.className = `modal-btn btn-confirm ${isDanger ? 'danger' : ''}`;
+            
+            modal.classList.add('active');
+            confirmBtn.onclick = () => { modal.classList.remove('active'); if (onConfirm) onConfirm(); };
+            cancelBtn.onclick = () => modal.classList.remove('active');
+        }
+        function customAlert(message) { showModal(message, false, null); }
+        function customConfirm(message, callback) { showModal(message, true, callback, true); }
+
+        // --- Plan Selector ---
+        function renderPlanSelector() {
+            const selector = document.getElementById('planSelector');
+            selector.innerHTML = '';
+            for (const [id, plan] of Object.entries(appData.plans)) {
+                const opt = document.createElement('option');
+                opt.value = id;
+                opt.textContent = plan.name;
+                if (id === appData.currentPlanId) opt.selected = true;
+                selector.appendChild(opt);
+            }
+        }
+
+        function switchPlan() {
+            const selector = document.getElementById('planSelector');
+            appData.currentPlanId = selector.value;
+            currentItems = appData.plans[appData.currentPlanId].items;
+            cancelEdit();
+            saveData();
+            renderPlans();
+        }
+
+        function promptNewPlan() {
+            document.getElementById('newPlanNameInput').value = '';
+            document.getElementById('inputModal').classList.add('active');
+            document.getElementById('newPlanNameInput').focus();
+        }
+
+        function execCreatePlan() {
+            const name = document.getElementById('newPlanNameInput').value.trim();
+            if (!name) return;
+            const newId = 'plan_' + Date.now();
+            appData.plans[newId] = { name: name, items: [] };
+            appData.currentPlanId = newId;
+            currentItems = appData.plans[newId].items;
+            document.getElementById('inputModal').classList.remove('active');
+            cancelEdit();
+            saveData();
+            renderPlanSelector();
+            renderPlans();
+        }
+
+        // --- Form Control ---
+        function syncTimezone() {
+            document.getElementById('timezone').value = document.getElementById('countrySelect').value;
+        }
+
+        function updateFormLabels() {
+            const type = document.querySelector('input[name="planType"]:checked').value;
+            const lblTitle = document.getElementById('labelTitle');
+            const lblDetail = document.getElementById('labelDetail');
+            const inputTitle = document.getElementById('title');
+            const inputDetail = document.getElementById('detail');
+            const resWrap = document.getElementById('reservationWrapper');
+
+            if (type === 'transport' || type === 'hotel') {
+                resWrap.style.display = 'block';
+            } else {
+                resWrap.style.display = 'none';
+                document.querySelector('input[name="reservation"][value="none"]').checked = true;
+            }
+
+            if (type === 'destination') {
+                lblTitle.textContent = '目的地 / スポット'; inputTitle.placeholder = '例: ルーヴル美術館';
+                lblDetail.textContent = '詳細 / メモ'; inputDetail.placeholder = '例: 事前にチケットを購入する';
+            } else if (type === 'transport') {
+                lblTitle.textContent = '出発地 → 到着地'; inputTitle.placeholder = '例: パリ北駅 → ロンドン';
+                lblDetail.textContent = '便名・列車名 / 費用 / 所要時間'; inputDetail.placeholder = '例: ユーロスター / 100€ / 2時間20分';
+            } else if (type === 'hotel') {
+                lblTitle.textContent = '宿泊先名'; inputTitle.placeholder = '例: リッツ・パリ';
+                lblDetail.textContent = '設備 / キャンセル規定'; inputDetail.placeholder = '例: 朝食付き / 10月1日までにキャンセル無料';
+            }
+        }
+
+        // --- Time & Date formatting ---
+        function getAbsoluteTime(localStr, tz) {
+            if(!localStr) return Infinity; 
+            try {
+                const tempDate = new Date(localStr + "Z");
+                const formatter = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'shortOffset' });
+                const parts = formatter.formatToParts(tempDate);
+                const tzPart = parts.find(p => p.type === 'timeZoneName');
+                let offset = tzPart ? tzPart.value.replace('GMT', '') : '';
+                if (offset === '') offset = '+00:00';
+                if (!offset.includes(':')) {
+                    const sign = offset[0] || '+';
+                    let hrs = offset.replace(/[+-]/, '');
+                    if(hrs.length === 1) hrs = '0' + hrs;
+                    offset = `${sign}${hrs}:00`;
+                }
+                return new Date(`${localStr}${offset}`).getTime();
+            } catch(e) {
+                return new Date(localStr).getTime();
+            }
+        }
+
+        function formatDateTimeDisplay(plan, isHotel = false) {
+            if (!plan.dateTime) return '日時未定';
+            const absTime = getAbsoluteTime(plan.dateTime, plan.timezone);
+            
+            // For slim hotel cards, only show the date part
+            const formatOpts = isHotel 
+                ? { month: '2-digit', day: '2-digit', weekday: 'short' }
+                : { month: '2-digit', day: '2-digit', weekday: 'short', hour: '2-digit', minute:'2-digit', hour12: false };
+            
+            if (isJstMode) {
+                const formatter = new Intl.DateTimeFormat('ja-JP', { ...formatOpts, timeZone: 'Asia/Tokyo' });
+                return formatter.format(absTime) + (isHotel ? '' : ' (JST)');
+            } else {
+                const formatter = new Intl.DateTimeFormat('ja-JP', { ...formatOpts, timeZone: plan.timezone });
+                if (isHotel) return formatter.format(absTime);
+
+                let tzShort = plan.timezone.split('/')[1] || plan.timezone;
+                if(plan.timezone === 'Europe/Paris') tzShort = 'CET';
+                if(plan.timezone === 'Europe/London') tzShort = 'GMT';
+                if(plan.timezone === 'Asia/Tokyo') tzShort = 'JST';
+                return `${formatter.format(absTime)} (${tzShort.replace('_',' ')})`;
+            }
+        }
+
+        function getDayNumber(itemDateStr, firstDateStr) {
+            if (!itemDateStr || !firstDateStr) return "?";
+            const d1 = new Date(itemDateStr.split('T')[0] + "T00:00:00Z");
+            const d2 = new Date(firstDateStr.split('T')[0] + "T00:00:00Z");
+            return Math.floor((d1 - d2) / 86400000) + 1;
+        }
+
+        // --- Rendering ---
+        function setViewMode(mode) {
+            viewMode = mode;
+            document.getElementById('btnTimeline').classList.toggle('active', mode === 'timeline');
+            document.getElementById('btnList').classList.toggle('active', mode === 'list');
+            renderPlans();
+        }
+
+        function toggleJST() {
+            isJstMode = document.getElementById('jstToggle').checked;
+            renderPlans();
+        }
+
+        function getIconForType(type) { return type === 'destination' ? '📍' : type === 'transport' ? '🚆' : '🏨'; }
+        function getClassForType(type) { return type === 'destination' ? 'type-dest' : type === 'transport' ? 'type-trans' : 'type-hotel'; }
+
+        function renderPlans() {
+            const container = document.getElementById('contentArea');
+            container.innerHTML = '';
+
+            if (currentItems.length === 0) {
+                container.innerHTML = `<div class="empty-state">予定がまだありません。<br>上から最初の目的地や移動を追加してください。</div>`;
+                return;
+            }
+
+            const firstValidPlan = currentItems.find(p => p.dateTime);
+            const firstDateStr = firstValidPlan ? firstValidPlan.dateTime : null;
+
+            if (viewMode === 'timeline') {
+                const timelineWrap = document.createElement('div');
+                timelineWrap.className = 'timeline-container';
+                
+                currentItems.forEach((plan, index) => {
+                    const el = document.createElement('div');
+                    el.className = `timeline-item ${getClassForType(plan.type)}`;
+                    
+                    const dayNum = plan.dateTime && firstDateStr ? getDayNumber(plan.dateTime, firstDateStr) : '-';
+                    const dayBadgeHtml = plan.dateTime ? `<span class="day-badge">${dayNum}日目</span>` : '';
+                    
+                    let resBadgeHtml = '';
+                    if (plan.reservation === 'reserved') resBadgeHtml = `<span class="res-badge badge-reserved">✓</span>`;
+                    else if (plan.reservation === 'unreserved') resBadgeHtml = `<span class="res-badge badge-unreserved">!</span>`;
+
+                    if (plan.type === 'hotel') {
+                        // Slim Hotel Card UI
+                        el.innerHTML = `
+                            <div class="hotel-slim-content">
+                                <span class="hotel-slim-date">🌙 ${escapeHTML(formatDateTimeDisplay(plan, true))}</span>
+                                ${dayBadgeHtml}
+                                ${resBadgeHtml}
+                                <span class="hotel-slim-title">${escapeHTML(plan.title)}</span>
+                            </div>
+                            <div class="item-actions">
+                                <button class="action-btn edit" onclick="editPlan(${index})">✎</button>
+                                <button class="action-btn delete" onclick="deletePlan(${index})">×</button>
+                            </div>
+                        `;
+                    } else {
+                        // Standard Card UI (Dest, Trans)
+                        let timeColorClass = plan.type === 'destination' ? 'color-dest' : 'color-trans';
+                        el.innerHTML = `
+                            <div class="badges-wrap">${dayBadgeHtml} ${plan.reservation && plan.reservation !== 'none' ? (plan.reservation === 'reserved' ? `<span class="res-badge badge-reserved">予約済</span>` : `<span class="res-badge badge-unreserved">未予約</span>`) : ''}</div>
+                            <div class="item-header">
+                                <div class="item-date ${timeColorClass}">${escapeHTML(formatDateTimeDisplay(plan, false))}</div>
+                                <div class="item-actions">
+                                    <button class="action-btn edit" onclick="editPlan(${index})">✎ 編集</button>
+                                    <button class="action-btn delete" onclick="deletePlan(${index})">× 削除</button>
+                                </div>
+                            </div>
+                            <div class="item-details">
+                                <div class="item-title">${getIconForType(plan.type)} ${escapeHTML(plan.title)}</div>
+                                ${plan.detail ? `<span>${escapeHTML(plan.detail)}</span>` : ''}
+                                ${plan.link ? `<span><a href="${escapeHTML(plan.link)}" target="_blank" rel="noopener noreferrer">🔗 リンク</a></span>` : ''}
+                            </div>
+                        `;
+                    }
+                    timelineWrap.appendChild(el);
+                });
+                container.appendChild(timelineWrap);
+            } else {
+                // List View
+                const listWrap = document.createElement('div');
+                listWrap.className = 'list-container';
+                let tableHTML = `<table class="list-table">
+                    <thead><tr><th>日目</th><th>日時</th><th>種類</th><th>状態</th><th>タイトル</th><th>詳細</th><th>操作</th></tr></thead>
+                    <tbody>`;
+                
+                currentItems.forEach((plan, index) => {
+                    const dayNum = plan.dateTime && firstDateStr ? getDayNumber(plan.dateTime, firstDateStr) : '-';
+                    let resBadgeHtml = '-';
+                    if (plan.reservation === 'reserved') resBadgeHtml = `<span class="res-badge badge-reserved">予約済</span>`;
+                    else if (plan.reservation === 'unreserved') resBadgeHtml = `<span class="res-badge badge-unreserved">未予約</span>`;
+
+                    tableHTML += `<tr>
+                        <td><strong>${dayNum}日目</strong></td>
+                        <td style="white-space:nowrap;">${escapeHTML(formatDateTimeDisplay(plan, plan.type === 'hotel'))}</td>
+                        <td style="text-align:center; font-size:1.2rem;">${getIconForType(plan.type)}</td>
+                        <td>${resBadgeHtml}</td>
+                        <td><strong>${escapeHTML(plan.title)}</strong></td>
+                        <td>${escapeHTML(plan.detail)} ${plan.link ? `<a href="${plan.link}" target="_blank">🔗</a>` : ''}</td>
+                        <td>
+                            <div class="item-actions" style="justify-content: flex-start;">
+                                <button class="action-btn edit" onclick="editPlan(${index})">✎</button>
+                                <button class="action-btn delete" onclick="deletePlan(${index})">×</button>
+                            </div>
+                        </td>
+                    </tr>`;
+                });
+                tableHTML += `</tbody></table>`;
+                listWrap.innerHTML = tableHTML;
+                container.appendChild(listWrap);
+            }
+        }
+
+        // --- CRUD ---
+        function addOrUpdatePlan() {
+            const countrySel = document.getElementById('countrySelect');
+            const type = document.querySelector('input[name="planType"]:checked').value;
+            const resRadio = document.querySelector('input[name="reservation"]:checked');
+
+            const plan = {
+                type: type,
+                dateTime: document.getElementById('dateTime').value.trim(),
+                timezone: document.getElementById('timezone').value,
+                title: document.getElementById('title').value.trim(),
+                detail: document.getElementById('detail').value.trim(),
+                link: document.getElementById('link').value.trim(),
+                reservation: (type === 'transport' || type === 'hotel') && resRadio ? resRadio.value : 'none',
+                countryValue: countrySel.value 
+            };
+
+            if (!plan.title) {
+                customAlert("目的地またはタイトルを入力してください。");
+                return;
+            }
+
+            if (editingIndex > -1) {
+                currentItems[editingIndex] = plan;
+                cancelEdit();
+            } else {
+                currentItems.push(plan);
+            }
+
+            currentItems.sort((a, b) => {
+                const timeA = getAbsoluteTime(a.dateTime, a.timezone);
+                const timeB = getAbsoluteTime(b.dateTime, b.timezone);
+                if (timeA !== Infinity && timeB !== Infinity) return timeA - timeB;
+                if (timeA !== Infinity && timeB === Infinity) return -1;
+                if (timeA === Infinity && timeB !== Infinity) return 1;
+                return 0;
+            });
+
+            saveData();
+            renderPlans();
+            clearForm();
+        }
+
+        function editPlan(index) {
+            editingIndex = index;
+            const plan = currentItems[index];
+            
+            document.querySelector(`input[name="planType"][value="${plan.type || 'destination'}"]`).checked = true;
+            
+            if(plan.countryValue) {
+                document.getElementById('countrySelect').value = plan.countryValue;
+            }
+            document.getElementById('timezone').value = plan.timezone || 'Europe/Paris';
+            
+            updateFormLabels(); 
+
+            document.getElementById('dateTime').value = plan.dateTime || '';
+            document.getElementById('title').value = plan.title || '';
+            document.getElementById('detail').value = plan.detail || '';
+            document.getElementById('link').value = plan.link || '';
+            
+            if(plan.reservation) {
+                const r = document.querySelector(`input[name="reservation"][value="${plan.reservation}"]`);
+                if(r) r.checked = true;
+            }
+
+            const formCard = document.getElementById('formCard');
+            const submitBtn = document.getElementById('btnSubmit');
+            const cancelBtn = document.getElementById('btnCancelEdit');
+
+            formCard.classList.add('editing-mode');
+            submitBtn.textContent = '予定を更新';
+            submitBtn.classList.add('btn-update');
+            cancelBtn.style.display = 'block';
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function cancelEdit() {
+            editingIndex = -1;
+            const formCard = document.getElementById('formCard');
+            const submitBtn = document.getElementById('btnSubmit');
+            const cancelBtn = document.getElementById('btnCancelEdit');
+
+            formCard.classList.remove('editing-mode');
+            submitBtn.textContent = '計画に追加';
+            submitBtn.classList.remove('btn-update');
+            cancelBtn.style.display = 'none';
+            
+            clearForm();
+            updateFormLabels();
+        }
+
+        function deletePlan(index) {
+            customConfirm("この予定を完全に削除しますか？", () => {
+                if (editingIndex === index) cancelEdit();
+                else if (editingIndex > index) editingIndex--;
+                currentItems.splice(index, 1);
+                saveData();
+                renderPlans();
+            });
+        }
+
+        function clearForm() {
+            document.getElementById('dateTime').value = '';
+            document.getElementById('title').value = '';
+            document.getElementById('detail').value = '';
+            document.getElementById('link').value = '';
+            document.querySelector('input[name="reservation"][value="none"]').checked = true;
+        }
+
+        function escapeHTML(str) {
+            if(!str) return '';
+            return str.replace(/[&<>'"]/g, 
+                tag => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'}[tag] || tag)
+            );
+        }
+
+        // --- AI Suggestion ---
+        async function suggestAI() {
+            const title = document.getElementById('title').value.trim();
+            if(!title) { customAlert("提案を取得するには目的地を入力してください。"); return; }
+            
+            const btn = document.getElementById('btnAiSuggest');
+            btn.innerHTML = "⏳ 考え中...";
+            btn.disabled = true;
+
+            try {
+                const prompt = `${title}を訪れる旅行者のために、絶対に食べるべき名物グルメ3つと、おすすめ観光スポット3つを簡潔にリストアップしてください。箇条書きで見やすくまとめてください。`;
+                const payload = {
+                    contents: [{ parts: [{ text: prompt }] }],
+                    systemInstruction: { parts: [{ text: "あなたはプロの旅行ガイドです。簡潔で役立つ提案を出力してください。" }] }
+                };
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "提案を取得できませんでした。";
+                
+                document.getElementById('aiModalTitle').textContent = `✨ ${title} のおすすめ情報`;
+                document.getElementById('aiModalContent').textContent = text;
+                document.getElementById('aiModal').classList.add('active');
+            } catch(e) {
+                console.error(e);
+                customAlert("AI提案の読み込みに失敗しました。");
+            } finally {
+                btn.innerHTML = "✨ AI 提案";
+                btn.disabled = false;
+            }
+        }
+
+        // --- Init ---
+        syncTimezone();
+        renderPlanSelector();
+        updateFormLabels();
+        renderPlans();
+    </script>
+</body>
+</html>
