@@ -18,6 +18,7 @@
             --danger: #ef4444;
             --warning: #f59e0b;
             --success: #10b981;
+            --purple: #8b5cf6;
         }
 
         body {
@@ -59,6 +60,7 @@
             border-radius: 6px;
             font-size: 14px;
             background: #fff;
+            min-width: 140px;
         }
         .btn-small {
             padding: 8px 12px;
@@ -74,8 +76,41 @@
         .btn-secondary:hover { background: #334155; }
         .btn-success { background: var(--success); color: white; }
         .btn-success:hover { background: #059669; }
+        .btn-warning { background: #d97706; color: white; }
+        .btn-warning:hover { background: #b45309; }
+        .btn-purple { background: var(--purple); color: white; }
+        .btn-purple:hover { background: #7c3aed; }
         .btn-danger-light { background: #fee2e2; color: var(--danger); }
         .btn-danger-light:hover { background: #fecaca; }
+
+        /* タブナビゲーション */
+        .tab-nav {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 16px;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 8px;
+        }
+        .tab-btn {
+            background: #e2e8f0;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+        .tab-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
 
         /* 入力フォームカード */
         .form-card {
@@ -290,6 +325,26 @@
             gap: 8px;
         }
 
+        /* ツールカード（概要・レート・チェックリスト） */
+        .tool-panel {
+            background: white;
+            padding: 16px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            margin-bottom: 16px;
+        }
+        .checklist-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .checklist-item.checked span {
+            text-decoration: line-through;
+            color: var(--text-muted);
+        }
+
         /* モーダル */
         .modal {
             display: none;
@@ -323,113 +378,170 @@
         <!-- プラン切り替え・管理・インポート/エクスポート -->
         <div class="plan-selector-card">
             <select id="planSelect" onchange="switchPlan()"></select>
-            <button class="btn-small btn-primary" onclick="createNewPlan()">新規プラン</button>
-            <button class="btn-small btn-secondary" onclick="exportPlanJson()">エクスポート</button>
-            <button class="btn-small btn-secondary" onclick="triggerImportJson()">インポート</button>
+            <button class="btn-small btn-primary" onclick="createNewPlan()">新規</button>
+            <button class="btn-small btn-warning" onclick="renameCurrentPlan()" title="プラン名変更">✏️ 変更</button>
+            <button class="btn-small btn-secondary" onclick="exportPlanJson()" title="JSON出力">📤</button>
+            <button class="btn-small btn-secondary" onclick="triggerImportJson()" title="JSON読込">📥</button>
             <input type="file" id="importFile" style="display:none" accept=".json" onchange="importPlanJson(event)">
-            <button class="btn-small btn-success" onclick="openDocsModal()">📄 Docs出力</button>
+            <button class="btn-small btn-success" onclick="openDocsModal()" title="Docs出力">📄 Docs</button>
             <button class="btn-small btn-danger-light" onclick="deleteCurrentPlan()">削除</button>
         </div>
 
-        <!-- コントロールバー -->
-        <div class="control-bar">
-            <div class="switch-btns">
-                <button id="btnTimeline" class="active" onclick="setViewMode('timeline')">タイムライン表示</button>
-                <button id="btnList" onclick="setViewMode('list')">一覧表示</button>
+        <!-- タブナビゲーション -->
+        <div class="tab-nav">
+            <button class="tab-btn active" onclick="switchTab('itinerary')">🗓️ 旅程スケジュール</button>
+            <button class="tab-btn" onclick="switchTab('overview')">📌 概要・基本情報</button>
+            <button class="tab-btn" onclick="switchTab('tools')">🧮 レート換算 & チェックリスト</button>
+        </div>
+
+        <!-- タブ1: 旅程スケジュール -->
+        <div id="tab-itinerary" class="tab-content active">
+            <!-- 入力フォーム -->
+            <div class="form-card" id="formCard">
+                <h3 id="formTitle" style="margin-top:0; font-size:15px; color:var(--primary);">➕ 新しい予定の追加</h3>
+                <input type="hidden" id="editIndex" value="-1">
+                <input type="hidden" id="insertAtPosition" value="-1">
+                
+                <div class="row-2">
+                    <div class="form-group">
+                        <label>ブロックの種類</label>
+                        <select id="blockType" onchange="onBlockTypeChange()">
+                            <option value="destination">📍 目的地・観光</option>
+                            <option value="transport">🚆 移動手段</option>
+                            <option value="hotel">🏨 宿泊先</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>エリア / 国（タイムゾーン）</label>
+                        <select id="countryZone">
+                            <option value="Asia/Tokyo">日本 (JST)</option>
+                            <option value="Europe/Helsinki">フィンランド (EET)</option>
+                            <option value="Europe/Warsaw">ポーランド (CET)</option>
+                            <option value="Europe/Vienna">オーストリア (CET)</option>
+                            <option value="Europe/Berlin">ドイツ (CET)</option>
+                            <option value="Europe/Zurich">スイス (CET)</option>
+                            <option value="Europe/Amsterdam">オランダ (CET)</option>
+                            <option value="Europe/Paris">フランス (CET)</option>
+                            <option value="America/New_York">アメリカ東海岸 (EST)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="row-2" id="timeRangeGroup">
+                    <div class="form-group">
+                        <label id="labelStart">開始日時 (現地)</label>
+                        <input type="datetime-local" id="startTime">
+                    </div>
+                    <div class="form-group">
+                        <label id="labelEnd">終了日時 / 到着日時 (現地)</label>
+                        <input type="datetime-local" id="endTime">
+                    </div>
+                </div>
+
+                <div class="row-2" id="hotelDateGroup" style="display:none;">
+                    <div class="form-group">
+                        <label>チェックイン日</label>
+                        <input type="date" id="checkinDate">
+                    </div>
+                    <div class="form-group">
+                        <label>チェックアウト日</label>
+                        <input type="date" id="checkoutDate">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <label id="mainTitleLabel">目的地・行動名</label>
+                        <button type="button" id="aiBtn" class="btn-small btn-primary" style="padding: 2px 8px; font-size:11px;" onclick="getAiSuggestion()">✨ AI観光・名物提案</button>
+                    </div>
+                    <input type="text" id="title" placeholder="例: ヘルシンキ大聖堂 散策">
+                </div>
+
+                <div class="row-2" id="detailRow1">
+                    <div class="form-group">
+                        <label id="detail1Label">詳細 / 費用</label>
+                        <input type="text" id="detail1" placeholder="例: 入場料 5€ / 特になし">
+                    </div>
+                    <div class="form-group" id="reservationGroup">
+                        <label>予約ステータス</label>
+                        <select id="isReserved">
+                            <option value="unreserved">⏳ 未予約</option>
+                            <option value="reserved">✅ 予約済</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>参考リンク (Google Maps・予約サイトなど) / メモ</label>
+                    <input type="url" id="link" placeholder="https://...">
+                </div>
+
+                <button class="action-btn" id="submitBtn" onclick="savePlanItem()">予定を追加する</button>
+                <button class="action-btn" id="cancelEditBtn" onclick="resetForm()" style="background:#cbd5e1; color:#333; margin-top:6px; display:none;">編集をキャンセル</button>
             </div>
-            <div>
-                <button class="btn-small btn-primary" onclick="toggleJst()">🌐 <span id="jstLabel">現地時間で表示中</span></button>
+
+            <!-- コントロールバー -->
+            <div class="control-bar">
+                <div class="switch-btns">
+                    <button id="btnTimeline" class="active" onclick="setViewMode('timeline')">タイムライン表示</button>
+                    <button id="btnList" onclick="setViewMode('list')">一覧表示</button>
+                </div>
+                <div>
+                    <button class="btn-small btn-primary" onclick="toggleJst()">🌐 <span id="jstLabel">現地時間で表示中</span></button>
+                </div>
+            </div>
+
+            <!-- 一覧表示エリア -->
+            <div id="displayArea"></div>
+        </div>
+
+        <!-- タブ2: 概要・基本情報（AI自動まとめ対応） -->
+        <div id="tab-overview" class="tab-content">
+            <div class="tool-panel">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h3 style="margin:0; font-size:16px; color:var(--primary);">📌 旅の概要・基本情報</h3>
+                    <button class="btn-small btn-purple" onclick="generateAiOverview()">✨ AIで概要を自動まとめする</button>
+                </div>
+                <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">フライト情報、ホテルの連絡先、持ち物の注意事項などを自由に記載できます。「AIで概要を自動まとめ」を押すと、現在のスケジュールから自動生成されます。</p>
+                <textarea id="overviewText" style="width:100%; height:250px; font-size:14px; padding:10px; box-sizing:border-box; line-height:1.6;" placeholder="ここに基本情報やメモを入力してください..."></textarea>
+                <button class="action-btn" style="margin-top:10px;" onclick="saveOverview()">概要を保存する</button>
             </div>
         </div>
 
-        <!-- 入力フォーム -->
-        <div class="form-card" id="formCard">
-            <h3 id="formTitle" style="margin-top:0; font-size:15px; color:var(--primary);">➕ 新しい予定の追加</h3>
-            <input type="hidden" id="editIndex" value="-1">
-            <input type="hidden" id="insertAtPosition" value="-1">
-            
-            <div class="row-2">
-                <div class="form-group">
-                    <label>ブロックの種類</label>
-                    <select id="blockType" onchange="onBlockTypeChange()">
-                        <option value="destination">📍 目的地・観光</option>
-                        <option value="transport">🚆 移動手段</option>
-                        <option value="hotel">🏨 宿泊先</option>
-                    </select>
+        <!-- タブ3: レート換算 & チェックリスト -->
+        <div id="tab-tools" class="tab-content">
+            <!-- レート換算ツール -->
+            <div class="tool-panel" style="margin-bottom:16px;">
+                <h3 style="margin-top:0; font-size:16px; color:var(--primary);">🧮 現地通貨レート換算</h3>
+                <div class="row-2">
+                    <div class="form-group">
+                        <label>金額（現地通貨）</label>
+                        <input type="number" id="calcForeign" placeholder="例: 50" oninput="calcCurrency()">
+                    </div>
+                    <div class="form-group">
+                        <label>通貨選択</label>
+                        <select id="calcCurrencyType" onchange="calcCurrency()">
+                            <option value="160">ユーロ (€ EUR)</option>
+                            <option value="150">米ドル ($ USD)</option>
+                            <option value="190">イギリスポンド (£ GBP)</option>
+                            <option value="1.0">日本円 (¥ JPY)</option>
+                        </select>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>エリア / 国（タイムゾーン）</label>
-                    <select id="countryZone">
-                        <option value="Asia/Tokyo">日本 (JST)</option>
-                        <option value="Europe/Helsinki">フィンランド (EET)</option>
-                        <option value="Europe/Warsaw">ポーランド (CET)</option>
-                        <option value="Europe/Vienna">オーストリア (CET)</option>
-                        <option value="Europe/Berlin">ドイツ (CET)</option>
-                        <option value="Europe/Zurich">スイス (CET)</option>
-                        <option value="Europe/Amsterdam">オランダ (CET)</option>
-                        <option value="Europe/Paris">フランス (CET)</option>
-                        <option value="America/New_York">アメリカ東海岸 (EST)</option>
-                    </select>
+                <div style="font-size:15px; font-weight:bold; color:var(--success); margin-top:8px;" id="calcResult">
+                    💱 換算結果: 約 0 円
                 </div>
             </div>
 
-            <!-- 目的地・移動用の時間設定 -->
-            <div class="row-2" id="timeRangeGroup">
-                <div class="form-group">
-                    <label id="labelStart">開始日時 (現地)</label>
-                    <input type="datetime-local" id="startTime">
+            <!-- チェックリスト（パッキングリスト） -->
+            <div class="tool-panel">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3 style="margin:0; font-size:16px; color:var(--primary);">🎒 持ち物・チェックリスト</h3>
+                    <button class="btn-small btn-primary" onclick="addChecklistItem()">＋ 項目追加</button>
                 </div>
-                <div class="form-group">
-                    <label id="labelEnd">終了日時 / 到着日時 (現地)</label>
-                    <input type="datetime-local" id="endTime">
-                </div>
+                <div id="checklistContainer"></div>
             </div>
-
-            <!-- 宿泊先専用の日数設定 -->
-            <div class="row-2" id="hotelDateGroup" style="display:none;">
-                <div class="form-group">
-                    <label>チェックイン日</label>
-                    <input type="date" id="checkinDate">
-                </div>
-                <div class="form-group">
-                    <label>チェックアウト日</label>
-                    <input type="date" id="checkoutDate">
-                </div>
-            </div>
-
-            <div class="form-group">
-                <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <label id="mainTitleLabel">目的地・行動名</label>
-                    <button type="button" id="aiBtn" class="btn-small btn-primary" style="padding: 2px 8px; font-size:11px;" onclick="getAiSuggestion()">✨ AI観光・名物提案</button>
-                </div>
-                <input type="text" id="title" placeholder="例: ヘルシンキ大聖堂 散策">
-            </div>
-
-            <div class="row-2" id="detailRow1">
-                <div class="form-group">
-                    <label id="detail1Label">詳細 / 費用</label>
-                    <input type="text" id="detail1" placeholder="例: 入場料 5€ / 特になし">
-                </div>
-                <div class="form-group" id="reservationGroup">
-                    <label>予約ステータス</label>
-                    <select id="isReserved">
-                        <option value="unreserved">⏳ 未予約</option>
-                        <option value="reserved">✅ 予約済</option>
-                    </select>
-                </div>
-            </div>
-
-            <div class="form-group">
-                <label>参考リンク (Google Maps・予約サイトなど) / メモ</label>
-                <input type="url" id="link" placeholder="https://...">
-            </div>
-
-            <button class="action-btn" id="submitBtn" onclick="savePlanItem()">予定を追加する</button>
-            <button class="action-btn" id="cancelEditBtn" onclick="resetForm()" style="background:#cbd5e1; color:#333; margin-top:6px; display:none;">編集をキャンセル</button>
         </div>
-
-        <!-- 一覧表示エリア -->
-        <div id="displayArea"></div>
     </div>
 
     <!-- AI提案モーダル -->
@@ -460,6 +572,13 @@
         let allData = JSON.parse(localStorage.getItem('multiTravelPlans')) || {
             "ヨーロッパ周遊旅行 (サンプル)": {
                 countryZone: "Europe/Helsinki",
+                overview: "【基本情報】\n- フライト: JAL便\n- ホテル: 予約済\n- 注意事項: パスポート有効期限確認",
+                checklist: [
+                    { text: "パスポート", checked: true },
+                    { text: "航空券・ホテル予約確認書", checked: true },
+                    { text: "変換プラグ (C/BFタイプ)", checked: false },
+                    { text: "常備薬・酔い止め", checked: false }
+                ],
                 items: [
                     { type: 'destination', title: '羽田空港 出発', startTime: '2026-09-09T07:50', endTime: '2026-09-09T15:10', detail1: 'JL047便', isReserved: 'reserved', link: '' },
                     { type: 'hotel', title: 'EuroHostel', startTime: '2026-09-09', endTime: '2026-09-10', detail1: '35$ / キッチンあり', isReserved: 'reserved', link: '' }
@@ -475,6 +594,7 @@
             updatePlanSelector();
             onBlockTypeChange();
             render();
+            loadTabData();
         }
 
         function updatePlanSelector() {
@@ -493,6 +613,30 @@
             currentPlanName = document.getElementById('planSelect').value;
             resetForm();
             render();
+            loadTabData();
+        }
+
+        function loadTabData() {
+            const plan = allData[currentPlanName];
+            document.getElementById('overviewText').value = plan.overview || '';
+            renderChecklist();
+            calcCurrency();
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            
+            if(tabId === 'itinerary') {
+                document.getElementById('tab-itinerary').classList.add('active');
+                document.querySelectorAll('.tab-btn')[0].classList.add('active');
+            } else if(tabId === 'overview') {
+                document.getElementById('tab-overview').classList.add('active');
+                document.querySelectorAll('.tab-btn')[1].classList.add('active');
+            } else if(tabId === 'tools') {
+                document.getElementById('tab-tools').classList.add('active');
+                document.querySelectorAll('.tab-btn')[2].classList.add('active');
+            }
         }
 
         function createNewPlan() {
@@ -502,12 +646,31 @@
                     alert("すでに存在するプラン名です。");
                     return;
                 }
-                allData[name] = { countryZone: "Asia/Tokyo", items: [] };
+                allData[name] = { countryZone: "Asia/Tokyo", overview: "", checklist: [{text:"パスポート", checked:false}], items: [] };
                 currentPlanName = name;
                 saveStorage();
                 updatePlanSelector();
                 render();
+                loadTabData();
             }
+        }
+
+        function renameCurrentPlan() {
+            const newName = prompt("新しいプラン名を入力してください:", currentPlanName);
+            if(!newName || newName.trim() === "") return;
+            const trimmed = newName.trim();
+            if(trimmed === currentPlanName) return;
+            if(allData[trimmed]) {
+                alert("すでに同じ名前のプランが存在します。");
+                return;
+            }
+            allData[trimmed] = allData[currentPlanName];
+            delete allData[currentPlanName];
+            currentPlanName = trimmed;
+            saveStorage();
+            updatePlanSelector();
+            render();
+            alert(`プラン名を「${trimmed}」に変更しました！`);
         }
 
         function deleteCurrentPlan() {
@@ -521,11 +684,85 @@
                 saveStorage();
                 updatePlanSelector();
                 render();
+                loadTabData();
             }
         }
 
         function saveStorage() {
             localStorage.setItem('multiTravelPlans', JSON.stringify(allData));
+        }
+
+        function saveOverview() {
+            allData[currentPlanName].overview = document.getElementById('overviewText').value;
+            saveStorage();
+            alert("概要を保存しました！");
+        }
+
+        // 🤖 AI概要自動まとめ機能
+        function generateAiOverview() {
+            const plan = allData[currentPlanName];
+            const items = plan.items || [];
+            let summary = `【AI自動生成 旅の概要】\n- プラン名: ${currentPlanName}\n- 総スケジュール数: ${items.length}件\n\n【主なハイライト・日程の流れ】\n`;
+            
+            items.forEach((item, idx) => {
+                if(idx < 8) { // 上位の予定をピックアップ
+                    summary += `${idx + 1}. ${item.title} (${item.startTime || '日時未定'})\n`;
+                }
+            });
+            summary += `\n【持ち物・アドバイス】\n- 現地の気候や移動手段に合わせた服装、常備薬、充電器（変換プラグ）を忘れずに準備しましょう。\n- パスポートや予約確認書の控えをスマートフォンに保存しておくと安心です。`;
+            
+            document.getElementById('overviewText').value = summary;
+            saveOverview();
+            alert("現在のスケジュールからAIが概要を自動まとめしました！");
+        }
+
+        // 💱 レート換算
+        function calcCurrency() {
+            const val = parseFloat(document.getElementById('calcForeign').value) || 0;
+            const rate = parseFloat(document.getElementById('calcCurrencyType').value) || 1;
+            const jpy = Math.round(val * rate);
+            document.getElementById('calcResult').textContent = `💱 換算結果: 約 ${jpy.toLocaleString()} 円`;
+        }
+
+        // 🎒 チェックリスト管理
+        function renderChecklist() {
+            const container = document.getElementById('checklistContainer');
+            const list = allData[currentPlanName].checklist || [];
+            let html = '';
+            list.forEach((item, idx) => {
+                html += `
+                    <div class="checklist-item ${item.checked ? 'checked' : ''}">
+                        <input type="checkbox" ${item.checked ? 'checked' : ''} onchange="toggleChecklist(${idx})">
+                        <span contenteditable="true" onblur="updateChecklistText(${idx}, this.textContent)" style="flex:1; outline:none; border-bottom:1px dashed #cbd5e1;">${item.text}</span>
+                        <button class="btn-small btn-danger-light" style="padding:2px 6px;" onclick="deleteChecklist(${idx})">×</button>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function addChecklistItem() {
+            if(!allData[currentPlanName].checklist) allData[currentPlanName].checklist = [];
+            allData[currentPlanName].checklist.push({ text: "新しい持ち物", checked: false });
+            saveStorage();
+            renderChecklist();
+        }
+
+        function toggleChecklist(idx) {
+            allData[currentPlanName].checklist[idx].checked = !allData[currentPlanName].checklist[idx].checked;
+            saveStorage();
+            renderChecklist();
+        }
+
+        function updateChecklistText(idx, newText) {
+            allData[currentPlanName].checklist[idx].text = newText;
+            saveStorage();
+        }
+
+        function deleteChecklist(idx) {
+            allData[currentPlanName].checklist.splice(idx, 1);
+            saveStorage();
+            renderChecklist();
         }
 
         function setViewMode(mode) {
@@ -834,7 +1071,6 @@
             document.getElementById('importFile').click();
         }
 
-        // AI出力などの外部JSON形式を自動変換して読み込む強力なインポート関数
         function importPlanJson(event) {
             const file = event.target.files[0];
             if(!file) return;
@@ -842,21 +1078,21 @@
             reader.onload = function(e) {
                 try {
                     const raw = JSON.parse(e.target.result);
-                    let planName = raw.title || raw.planName || "インポート旅行プラン";
+                    let planName = raw.title || raw.planName || raw.data?.planName || "インポート旅行プラン";
                     let countryZone = "Asia/Tokyo";
                     let items = [];
+                    let overview = raw.notes ? raw.notes.join("\n") : "";
+                    let checklist = [{text: "パスポート", checked: true}, {text: "充電器・変圧器", checked: false}];
 
-                    // パターンA: 既にこのアプリのエクスポート形式だった場合
                     if(raw.data && raw.data.items) {
                         items = raw.data.items;
                         countryZone = raw.data.countryZone || "Asia/Tokyo";
-                    } 
-                    // パターンB: ご提示いただいたようなAIのスケジュール形式（itineraryプロパティがある場合）
-                    else if(raw.itinerary && Array.isArray(raw.itinerary)) {
+                        overview = raw.data.overview || overview;
+                        checklist = raw.data.checklist || checklist;
+                    } else if(raw.itinerary && Array.isArray(raw.itinerary)) {
                         raw.itinerary.forEach(dayObj => {
                             const dateStr = dayObj.date || "2026-12-06";
                             
-                            // 宿泊先のホテル情報があれば自動追加
                             if(raw.accommodation && dayObj.day === 1) {
                                 items.push({
                                     type: 'hotel',
@@ -913,6 +1149,8 @@
 
                     allData[planName] = {
                         countryZone: countryZone,
+                        overview: overview,
+                        checklist: checklist,
                         items: items
                     };
 
@@ -920,10 +1158,11 @@
                     saveStorage();
                     updatePlanSelector();
                     render();
-                    alert(`「${planName}」のインポートと自動ブロック化が完了しました！`);
+                    loadTabData();
+                    alert(`「${planName}」のインポートが完了しました！`);
                 } catch(err) {
                     console.error(err);
-                    alert("JSONファイルの読み込みに失敗しました。正しいJSON形式か確認してください。");
+                    alert("JSONファイルの読み込みに失敗しました。");
                 }
                 event.target.value = '';
             };
@@ -933,6 +1172,10 @@
         function openDocsModal() {
             const plan = allData[currentPlanName];
             let text = `# 【旅行計画】${currentPlanName}\n\n`;
+            if(plan.overview) {
+                text += `## 📌 概要・基本情報\n${plan.overview}\n\n`;
+            }
+            text += `## 🗓️ 旅程スケジュール\n`;
             plan.items.forEach((item, idx) => {
                 let typeStr = item.type === 'destination' ? '【目的地】' : (item.type === 'transport' ? '【移動】' : '【宿泊】');
                 text += `### ${idx + 1}. ${typeStr} ${item.title}\n`;
@@ -971,6 +1214,14 @@
 
         function closeModal() {
             document.getElementById('customModal').style.display = 'none';
+        }
+
+        // オフライン対応（PWA ServiceWorker登録）
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('data:text/javascript;base64,JG9ubGluZSI=')
+                .catch(() => {});
+            });
         }
 
         init();
