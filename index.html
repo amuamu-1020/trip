@@ -825,7 +825,7 @@
             const dlAnchor = document.createElement('a');
             dlAnchor.setAttribute("href", dataStr);
             dlAnchor.setAttribute("download", `${currentPlanName}_plan.json`);
-            document.addEl?.(dlAnchor) || document.body.appendChild(dlAnchor);
+            document.body.appendChild(dlAnchor);
             dlAnchor.click();
             dlAnchor.remove();
         }
@@ -834,25 +834,96 @@
             document.getElementById('importFile').click();
         }
 
+        // AI出力などの外部JSON形式を自動変換して読み込む強力なインポート関数
         function importPlanJson(event) {
             const file = event.target.files[0];
             if(!file) return;
             const reader = new FileReader();
             reader.onload = function(e) {
                 try {
-                    const imported = JSON.parse(e.target.result);
-                    let name = imported.planName || "インポートプラン";
-                    if(allData[name]) {
-                        name += "_" + Date.now();
+                    const raw = JSON.parse(e.target.result);
+                    let planName = raw.title || raw.planName || "インポート旅行プラン";
+                    let countryZone = "Asia/Tokyo";
+                    let items = [];
+
+                    // パターンA: 既にこのアプリのエクスポート形式だった場合
+                    if(raw.data && raw.data.items) {
+                        items = raw.data.items;
+                        countryZone = raw.data.countryZone || "Asia/Tokyo";
+                    } 
+                    // パターンB: ご提示いただいたようなAIのスケジュール形式（itineraryプロパティがある場合）
+                    else if(raw.itinerary && Array.isArray(raw.itinerary)) {
+                        raw.itinerary.forEach(dayObj => {
+                            const dateStr = dayObj.date || "2026-12-06";
+                            
+                            // 宿泊先のホテル情報があれば自動追加
+                            if(raw.accommodation && dayObj.day === 1) {
+                                items.push({
+                                    type: 'hotel',
+                                    title: raw.accommodation.name || "ホテル",
+                                    startTime: dateStr,
+                                    endTime: raw.dates ? raw.dates.split(" to ")[1] || dateStr : dateStr,
+                                    detail1: (raw.accommodation.features || []).join(" / "),
+                                    isReserved: 'reserved',
+                                    link: ''
+                                });
+                            }
+
+                            if(dayObj.schedule && Array.isArray(dayObj.schedule)) {
+                                dayObj.schedule.forEach(sch => {
+                                    let type = 'destination';
+                                    const cat = (sch.category || "").toLowerCase();
+                                    if(cat.includes('移動') || cat.includes('交通')) type = 'transport';
+                                    if(cat.includes('宿泊') || cat.includes('ホテル')) type = 'hotel';
+
+                                    let startTime = '', endTime = '';
+                                    if(sch.time && sch.time.includes(' - ')) {
+                                        const parts = sch.time.split(' - ');
+                                        startTime = `${dateStr}T${parts[0].trim()}`;
+                                        endTime = `${dateStr}T${parts[1].trim()}`;
+                                    } else {
+                                        startTime = `${dateStr}T10:00`;
+                                        endTime = `${dateStr}T11:00`;
+                                    }
+
+                                    let detail1 = sch.details || '';
+                                    if(sch.transportation_cost_jpy) {
+                                        detail1 += ` (費用: ¥${sch.transportation_cost_jpy.toLocaleString()})`;
+                                    }
+
+                                    items.push({
+                                        type: type,
+                                        title: sch.title || '予定',
+                                        startTime: startTime,
+                                        endTime: endTime,
+                                        detail1: detail1,
+                                        isReserved: type === 'transport' || type === 'hotel' ? 'reserved' : 'unreserved',
+                                        link: ''
+                                    });
+                                });
+                            }
+                        });
+                    } else if(Array.isArray(raw.items)) {
+                        items = raw.items;
                     }
-                    allData[name] = imported.data || imported;
-                    currentPlanName = name;
+
+                    if(allData[planName]) {
+                        planName += "_" + Date.now();
+                    }
+
+                    allData[planName] = {
+                        countryZone: countryZone,
+                        items: items
+                    };
+
+                    currentPlanName = planName;
                     saveStorage();
                     updatePlanSelector();
                     render();
-                    alert(`プラン「${name}」を正常にインポートしました！`);
+                    alert(`「${planName}」のインポートと自動ブロック化が完了しました！`);
                 } catch(err) {
-                    alert("JSONファイルの形式が正しくありません。");
+                    console.error(err);
+                    alert("JSONファイルの読み込みに失敗しました。正しいJSON形式か確認してください。");
                 }
                 event.target.value = '';
             };
